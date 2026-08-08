@@ -61,7 +61,11 @@ export function normalizeTable(text: string, options: TableOptions = {}): string
     return tableToGfm(table, options) + '\n'
   }
 
-  // 管道分隔文本
+  // 管道分隔文本：必须至少含一个未转义的 '|'（审查 MD-06——避免把任意
+  // 无管道文本默认为单列表格，与"管道分隔"契约不一致）
+  if (!/(^|[^\\])\|/.test(trimmed)) {
+    throw new Error('markdown: table: input must be an HTML <table> or pipe-delimited text (no "|" found)')
+  }
   const lines = trimmed.split(/\r?\n/).filter(l => l.trim() !== '')
   const rows = lines.map(splitPipe)
   let sepIndex = -1

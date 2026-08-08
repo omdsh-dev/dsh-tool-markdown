@@ -92,6 +92,43 @@ describe('html2md: 表格', () => {
   })
 })
 
+describe('html2md: 安全与语义保持（审查修复）', () => {
+  it('escapes markdown metacharacters in plain text (MD-03)', () => {
+    expect(html2md('<p>*literal*</p>')).toBe('\\*literal\\*\n')
+    expect(html2md('<p># heading</p>')).toBe('\\# heading\n')
+    expect(html2md('<p>- item</p>')).toBe('\\- item\n')
+    expect(html2md('<p>1. item</p>')).toBe('1\\. item\n')
+    expect(html2md('<p>[x](https://a.b)</p>')).toBe('\\[x\\]\\(https://a.b\\)\n')
+    expect(html2md('<p>a &lt; b &gt; c</p>')).toBe('a \\< b \\> c\n')
+  })
+
+  it('escapes line-start markers inside container text (MD-03)', () => {
+    expect(html2md('<div># fake</div>')).toBe('\\# fake\n')
+  })
+
+  it('keeps inline formatting working after escaping (strong/em still render)', () => {
+    expect(html2md('<p><strong>s</strong> <em>e</em></p>')).toBe('**s** *e*\n')
+  })
+
+  it('normalizes control characters and case in URLs (MD-01/MD-02)', () => {
+    expect(html2md('<a href="&#x09;javascript:alert(1)">x</a>')).toBe('x\n')
+    expect(html2md('<a href="&#10;javascript:alert(1)">x</a>')).toBe('x\n')
+    expect(html2md('<a href="HTTP://example.com">ok</a>')).toBe('[ok](HTTP://example.com)\n')
+    expect(html2md('<a href="JaVaScRiPt:alert(1)">x</a>')).toBe('x\n')
+  })
+
+  it('selects a safe fence length when code contains backticks (MD-04)', () => {
+    expect(html2md('<pre><code>aaa\n```\nevil\n```\nbbb</code></pre>'))
+      .toBe('````\naaa\n```\nevil\n```\nbbb\n````\n')
+    expect(html2md('<pre><code>````x````</code></pre>')).toBe('`````\n````x````\n`````\n')
+  })
+
+  it('escapes markdown metacharacters inside table cells (MD-03)', () => {
+    expect(html2md('<table><tr><td>*x*</td><td>a|b</td></tr></table>'))
+      .toBe('| \\*x\\* | a\\|b |\n| --- | --- |\n')
+  })
+})
+
 describe('html2md: 噪音与容器', () => {
   it('strips script/style and passes through unknown containers', () => {
     const md = html2md('<div><script>bad()</script><p>ok</p></div><section><p>s</p></section>')

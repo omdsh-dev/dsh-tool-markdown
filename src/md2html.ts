@@ -17,18 +17,29 @@ export interface Md2HtmlOptions {
   baseUrl?: string
 }
 
-const SCHEME_RE = /^[a-zA-Z][a-zA-Z0-9+.-]*:/
+const SCHEME_RE = /^([a-zA-Z][a-zA-Z0-9+.-]*):/
 
-function safeScheme(url: string): boolean {
-  if (!SCHEME_RE.test(url)) return true
-  return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:')
+/** URL 规范化（审查 MD-01/MD-02）：去除 C0 控制字符与首尾空白后再判断。 */
+function normalizeUrl(raw: string): string {
+  return raw.replace(/[\u0000-\u001f\u007f]/g, '').trim()
+}
+
+/** scheme 白名单（大小写不敏感，审查 MD-02）；无 scheme 视为相对路径。 */
+function safeScheme(rawUrl: string): boolean {
+  const url = normalizeUrl(rawUrl)
+  if (url === '') return false
+  const m = SCHEME_RE.exec(url)
+  if (!m) return true // 相对路径（无 scheme；协议相对 //host 属此类）
+  const scheme = m[1]!.toLowerCase()
+  return scheme === 'http' || scheme === 'https' || scheme === 'mailto'
 }
 
 function resolveUrl(href: string, baseUrl: string | undefined): string {
-  if (baseUrl === undefined || href === '' || SCHEME_RE.test(href)) return href
+  const h = normalizeUrl(href)
+  if (baseUrl === undefined || h === '' || SCHEME_RE.test(h)) return h
   const base = baseUrl.replace(/\/+$/, '')
-  if (href.startsWith('/')) return base + href
-  return `${base}/${href}`
+  if (h.startsWith('/')) return base + h
+  return `${base}/${h}`
 }
 
 export function escapeHtml(text: string): string {

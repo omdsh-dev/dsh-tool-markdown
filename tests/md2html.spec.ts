@@ -62,4 +62,15 @@ describe('md2html: 安全', () => {
   it('handles unclosed inline markers gracefully', () => {
     expect(md2html('**unclosed')).toBe('<p>**unclosed</p>\n')
   })
+
+  it('normalizes control characters and case in URLs (MD-01/MD-02)', () => {
+    // 前导控制空白不再绕过 scheme 检查
+    expect(md2html('[x](\tjavascript:alert(1))')).toBe('<p>x</p>\n')
+    expect(md2html('[x](\njavascript:alert(1))')).toBe('<p>x</p>\n')
+    // 大写 scheme 合法保留
+    expect(md2html('[x](HTTPS://example.com)')).toBe('<p><a href="HTTPS://example.com">x</a></p>\n')
+    expect(md2html('[x](HTTP://example.com)')).toBe('<p><a href="HTTP://example.com">x</a></p>\n')
+    // 混合大小写危险 scheme 降级
+    expect(md2html('[x](JaVaScRiPt:alert(1))')).toBe('<p>x</p>\n')
+  })
 })

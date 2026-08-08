@@ -17,18 +17,29 @@ export interface Html2MdOptions {
   baseUrl?: string
 }
 
-const SCHEME_RE = /^[a-zA-Z][a-zA-Z0-9+.-]*:/
+const SCHEME_RE = /^([a-zA-Z][a-zA-Z0-9+.-]*):/
 
-function safeScheme(url: string): boolean {
-  if (!SCHEME_RE.test(url)) return true // 相对路径（无 scheme）
-  return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:')
+/** URL 规范化（审查 MD-01/MD-02）：去除 C0 控制字符与首尾空白后再判断。 */
+function normalizeUrl(raw: string): string {
+  return raw.replace(/[\u0000-\u001f\u007f]/g, '').trim()
+}
+
+/** scheme 白名单（大小写不敏感，审查 MD-02）；无 scheme 视为相对路径。 */
+function safeScheme(rawUrl: string): boolean {
+  const url = normalizeUrl(rawUrl)
+  if (url === '') return false
+  const m = SCHEME_RE.exec(url)
+  if (!m) return true // 相对路径（无 scheme；协议相对 //host 属此类）
+  const scheme = m[1]!.toLowerCase()
+  return scheme === 'http' || scheme === 'https' || scheme === 'mailto'
 }
 
 function resolveUrl(href: string, baseUrl: string | undefined): string {
-  if (baseUrl === undefined || href === '' || SCHEME_RE.test(href)) return href
+  const h = normalizeUrl(href)
+  if (baseUrl === undefined || h === '' || SCHEME_RE.test(h)) return h
   const base = baseUrl.replace(/\/+$/, '')
-  if (href.startsWith('/')) return base + href
-  return `${base}/${href}`
+  if (h.startsWith('/')) return base + h
+  return `${base}/${h}`
 }
 
 function collapse(text: string): string {
@@ -36,13 +47,25 @@ function collapse(text: string): string {
   return text.replace(/[ \t\n\r\f]+/g, ' ')
 }
 
+/** 行首 Markdown 元字符转义（审查 MD-03）：防止文本被解释为标题/列表/引用。 */
+function escapeLineStart(text: string): string {
+  if (/^[#>+\-]/.test(text)) return `\\${text}`
+  if (/^\d+\./.test(text)) return text.replace(/^(\d+)\./, '$1\\.') // 转义点号破坏有序列表
+  return text
+}
+
+/** 行内文本 Markdown 元字符转义（审查 MD-03）。 */
+function escapeInlineText(text: string): string {
+  return text.replace(/[\\`*_[\]<>()]/g, '\\$&')
+}
+
 function escapePipe(text: string): string {
   return text.replace(/\|/g, '\\|')
 }
 
-/** 行内渲染：文本流拼接（空白折叠）。 */
+/** 行内渲染：文本流拼接（空白折叠 + Markdown 元字符转义）。 */
 function renderInline(node: HtmlNode, options: Html2MdOptions): string {
-  if (node.type === 'text') return collapse(node.text ?? '')
+  if (node.type === 'text') return escapeInlineText(collapse(node.text ?? ''))
   const tag = node.tag ?? ''
   const children = node.children.map(c => renderInline(c, options)).join('')
   switch (tag) {
@@ -88,7 +111,7 @@ function renderBlock(node: HtmlNode, options: Html2MdOptions): string {
       return `${'#'.repeat(level)} ${renderInline(node, options).trim()}`
     }
     case 'p':
-      return renderInline(node, options).trim()
+      return escapeLineStart(renderInline(node, options).trim())
     case 'hr':
       return '---'
     case 'blockquote': {
@@ -108,7 +131,10 @@ function renderBlock(node: HtmlNode, options: Html2MdOptions): string {
       }
       const code = codeText(node).replace(/\n+$/, '')
       const lang = /(?:^|\s)language-([a-zA-Z0-9_-]+)/.exec(node.attrs['class'] ?? '')?.[1]
-      return `\`\`\`${lang ?? ''}\n${code}\n\`\`\``
+      // 安全围栏（审查 MD-04）：内容含反引号时选用更长围栏，防止代码块逃逸
+      const maxRun = (code.match(/`+/g) ?? []).reduce((m, r) => Math.max(m, r.length), 0)
+      const fence = '`'.repeat(Math.max(3, maxRun + 1))
+      return `${fence}${lang ?? ''}\n${code}\n${fence}`
     }
     case 'ul': case 'ol': {
       return renderList(node, 0, options)
@@ -120,8 +146,11 @@ function renderBlock(node: HtmlNode, options: Html2MdOptions): string {
     default:
       // 行内标签（根层出现时）：行内渲染
       if (INLINE_TAGS.has(tag)) return renderInline(node, options)
-      // 容器/未知元素：块级递归
-      return node.children.map(c => renderBlock(c, options)).filter(Boolean).join('\n\n')
+      // 容器/未知元素：块级递归（文本子节点做行首转义）
+      return node.children.map(c => {
+        if (c.type === 'text') return escapeLineStart(collapse(c.text ?? ''))
+        return renderBlock(c, options)
+      }).filter(Boolean).join('\n\n')
   }
 }
 

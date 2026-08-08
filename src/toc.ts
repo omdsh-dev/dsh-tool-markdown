@@ -1,17 +1,30 @@
 /**
  * Markdown 目录生成 —— 从标题行生成嵌套列表 + 锚点链接。零依赖，纯函数。
  *
- * 锚点 slugify（GitHub 风格简化版）：小写、去除标点、空白转 '-'
- * （CJK 字符保留——GitHub 锚点对 CJK 原样保留）。
+ * 审查 MD-05 修复：
+ * - fenced code 状态机：围栏内 `# fake` 不进入目录；
+ * - 重复标题锚点自动递增（GitHub 风格 `-1/-2` 后缀）；
+ * - 尾部闭合井号只在前面有空白时才剥离（`# C#` 正确保留为文本 C#）；
+ * - slug 前剥离行内 Markdown 语法（`code`→code、[x](url)→x、**b**→b），
+ *   与 GitHub slug 方向一致（简化实现，CJK 保留）。
  */
 
-/** GitHub 风格锚点（简化）：小写 + 去标点 + 空白转 '-'。 */
-export function slugify(text: string): string {
+/** 剥离行内 Markdown 语法 → 可见文本（GitHub slug 方向；下划线保留）。 */
+function toVisibleText(text: string): string {
   return text
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/!?\[([^\]]*)\]/g, '$1')
+    .replace(/\*{1,2}/g, '')
+}
+
+/** GitHub 风格锚点（简化）：小写 + 去标点 + 空白转 '-'（下划线保留）；CJK 保留。 */
+export function slugify(text: string): string {
+  return toVisibleText(text)
     .toLowerCase()
     .replace(/[^\p{L}\p{N} _-]/gu, '')
     .trim()
-    .replace(/[ _]+/g, '-')
+    .replace(/ +/g, '-')
 }
 
 export interface TocEntry {
@@ -20,15 +33,29 @@ export interface TocEntry {
   anchor: string
 }
 
-/** 从 Markdown 提取标题序列。 */
+const FENCE_RE = /^```|^~~~/
+
+/** 从 Markdown 提取标题序列（跳过 fenced code 内的伪标题；重复锚点递增）。 */
 export function extractHeadings(markdown: string): TocEntry[] {
   const entries: TocEntry[] = []
+  const seen = new Map<string, number>()
+  let inFence = false
   for (const line of markdown.replace(/\r\n/g, '\n').split('\n')) {
-    const m = /^(#{1,6})\s+(.*?)\s*#*\s*$/.exec(line)
+    if (FENCE_RE.test(line.trimStart())) {
+      inFence = !inFence
+      continue
+    }
+    if (inFence) continue
+    // 尾部闭合井号仅在前有空白时剥离（`# C#` → 文本 "C#"）
+    const m = /^(#{1,6})\s+(.*?)(?:\s+#+)?\s*$/.exec(line)
     if (m) {
       const text = m[2]!.trim()
       if (text === '') continue
-      entries.push({ level: m[1]!.length, text, anchor: slugify(text) })
+      const base = slugify(text)
+      const count = seen.get(base) ?? 0
+      seen.set(base, count + 1)
+      const anchor = count === 0 ? base : `${base}-${count}`
+      entries.push({ level: m[1]!.length, text, anchor })
     }
   }
   return entries

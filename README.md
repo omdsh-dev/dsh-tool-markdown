@@ -35,10 +35,10 @@ DSH Markdown 工具插件 —— HTML↔Markdown 转换、GFM 表格规范化、
 
 | action | 功能 |
 |---|---|
-| `html2md` | HTML → GFM Markdown：块级/行内全映射、表格转 GFM（colspan 占位补齐）、实体解码、script/style 剥离、链接 scheme 过滤 |
+| `html2md` | HTML → GFM Markdown：块级/行内全映射、表格转 GFM（colspan 占位补齐）、实体解码、script/style 剥离、链接 scheme 过滤（**不做 readability 正文选择**，nav/header/footer 默认透传） |
 | `md2html` | Markdown → 白名单安全 HTML：全文本转义，无标签可逃逸 |
-| `table` | HTML `<table>` 或管道分隔文本 → GFM 表格（列补齐、`\|` 转义、分隔行识别） |
-| `toc` | Markdown 标题 → 嵌套目录列表（GitHub 风格锚点） |
+| `table` | HTML `<table>` 或**含未转义 `\|`** 的管道分隔文本 → GFM 表格（列补齐、`\|` 转义、分隔行识别；无管道输入报错） |
+| `toc` | Markdown 标题 → 嵌套目录列表（简化 GitHub 风格锚点：重复标题自动 -1/-2 后缀、跳过代码围栏内伪标题） |
 
 ## 示例
 

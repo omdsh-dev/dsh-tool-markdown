@@ -10,7 +10,7 @@
  * md2html 只输出白名单标签（文本一律 HTML 转义）；链接 scheme 白名单；
  * script/style/iframe 内容剥离；嵌套深度 64 上限；maxBytes 输入预算。
  */
-import type { Context } from 'cordis';
+import type { Context } from '@deepseek-ai/cordis';
 export declare const name = "@deepseek-ai/dsh-tool-markdown";
 export declare const inject: string[];
 export declare function apply(ctx: Context): void;

@@ -1,5 +1,7 @@
 # dsh-tool-markdown
 
+[English](README.en.md)
+
 DSH Markdown 工具插件 —— HTML↔Markdown 转换、GFM 表格规范化、目录生成。零依赖、纯函数、手写轻量解析器。
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)

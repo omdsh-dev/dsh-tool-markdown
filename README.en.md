@@ -73,32 +73,42 @@ markdown { action: "toc", markdown: "# 标题一\n## 小节" }
 | Input over limit | `markdown: <label> exceeds N bytes` (no truncation) |
 | Embedded HTML in md2html | Escaped as text as-is; whitelist-external tags are never output |
 
-## npm rc.1 compatibility (verified)
+## npm 0.1.0-rc.6 compatibility (verified)
 
-This plugin has been migrated to the npm rc.1 dependency line and fully verified in an isolated consumer of `@deepseek-ai/dsh@0.0.1-rc.1`:
+This plugin has been migrated to the npm 0.1.0-rc.6 dependency line and fully verified in an isolated consumer of `@deepseek-ai/dsh@0.1.0-rc.6`:
 
-- **Types/runtime**: `@deepseek-ai/cordis@^4.0.1-rc.1` + `@deepseek-ai/dsh-tools@^0.0.1-rc.1` + `@deepseek-ai/dsh-invariants@^0.0.1-rc.1` (peer); no longer depends on unscoped `cordis`
+- **Types/runtime**: `@deepseek-ai/cordis@^4.0.1` + `@deepseek-ai/dsh-tools@>=0.0.1-rc.1 <0.2.0` + `@deepseek-ai/dsh-invariants@>=0.0.1-rc.1 <0.2.0` (peer); no longer depends on unscoped `cordis`
 - **Standalone build**: `npm install` (devDependencies are self-contained: typescript/vitest/@types/node) → `npm run typecheck` → `npm test` → `npm run build` → `npm pack`
-- **Consumption verification**: tarball installed into the rc.1 consumer → `dsh --profile compat --dump-config` shows this plugin's row → the tool actually registers and executes
-- **Startup**: `npx -p @deepseek-ai/dsh@0.0.1-rc.1 dsh web` (lib production mode; do not `install -g` globally)
+- **Consumption verification**: tarball installed into the 0.1.0-rc.6 consumer → `dsh --profile compat --dump-config` shows this plugin's row → the tool actually registers and executes
+- **Startup**: `npx -p @deepseek-ai/dsh@0.1.0-rc.6 dsh web` (lib production mode; do not `install -g` globally)
 
 
 ## Installation
 
+Plugin source repository: `https://github.com/omdsh-dev/dsh-tool-markdown` (public).
+
 ### Profile Bundle (recommended)
 
-Install this plugin as a standalone bundle into a profile (0806+):
+Install this plugin as a standalone bundle into a profile (DSH 0.1.0-rc.6, npm):
 
 ```sh
 # 交互式（web）profile
-dsh plugin --profile web add "C:/path/to/dsh-tool-markdown"
+dsh plugin --profile web add github:omdsh-dev/dsh-tool-markdown
 # 一次性任务（headless）profile —— dsh run 默认使用 headless
-dsh plugin --profile headless add "C:/path/to/dsh-tool-markdown"
+dsh plugin --profile headless add github:omdsh-dev/dsh-tool-markdown
 ```
 
-The `dsh.bundle.patch` inside the package automatically adds the plugin to the profile's layer stack after installation (row id: `tool-markdown`). Missing peer dependencies of the plugin (`cordis`, `@deepseek-ai/dsh-tools`) are provided by the profile's healed `profiles/node_modules` fallback install.
+The `dsh.bundle.patch` inside the package automatically adds the plugin to the profile's layer stack after installation (row id: `tool-markdown`).
 
-> ⚠️ web and headless are **different profiles**: installing into web does not automatically cover headless; `dsh run` uses the headless profile by default. Use forward slashes for Windows paths (`C:/...`).
+> ⚠️ web and headless are **different profiles**: installing into web does not automatically cover headless; `dsh run` uses the headless profile by default.
+
+### Install via npm pack tarball
+
+```sh
+npm pack    # generates dsh-tool-markdown-*.tgz
+dsh plugin --profile web add ./dsh-tool-markdown-*.tgz
+dsh plugin --profile headless add ./dsh-tool-markdown-*.tgz
+```
 
 ### Verify installation
 
